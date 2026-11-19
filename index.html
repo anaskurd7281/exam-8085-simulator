@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Intel 8085 Simulator</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: monospace; }
+body { background: #0f172a; color: #fff; padding: 10px; display: flex; flex-direction: column; gap: 10px; }
+.card { background: #1e293b; padding: 10px; border-radius: 8px; border: 1px solid #334155; }
+.title { font-size: 0.85rem; color: #38bdf8; margin-bottom: 8px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 6px; }
+.pair-row { display: grid; grid-template-columns: 1fr 1fr 1.3fr; gap: 6px; margin-bottom: 6px; align-items: center; }
+.box { background: #0f172a; border: 1px solid #334155; border-radius: 5px; padding: 5px; text-align: center; }
+.pair-box { background: #0b1324; border: 1px solid #38bdf8; border-radius: 5px; padding: 5px; text-align: center; }
+.lbl { font-size: 0.72rem; color: #94a3b8; }
+.pair-box .lbl { color: #38bdf8; font-weight: bold; }
+.inp { width: 100%; background: transparent; border: none; color: #fff; font-size: 1.05rem; font-weight: bold; text-align: center; text-transform: uppercase; outline: none; }
+.pair-box .inp { color: #38bdf8; }
+.flags { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin-top: 8px; }
+.fbox { background: #0f172a; border: 1px solid #334155; border-radius: 4px; padding: 4px; text-align: center; cursor: pointer; }
+.fval { color: #22c55e; font-weight: bold; }
+.bits-panel { display: none; background: #0f172a; border: 1px solid #38bdf8; border-radius: 6px; padding: 8px; margin-bottom: 8px; }
+.bits-panel.open { display: block; }
+.bits-row { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; align-items: center; }
+.bcell { background: #1e293b; border: 1px solid #334155; border-radius: 4px; padding: 4px 2px; text-align: center; cursor: pointer; }
+.bcell.cy-ro { border-color: #f59e0b; background: #1c1917; cursor: not-allowed; }
+.blbl { font-size: 0.65rem; color: #94a3b8; display: block; }
+.bval { font-size: 0.95rem; font-weight: bold; color: #38bdf8; }
+.bcell.cy-ro .bval { color: #f59e0b; }
+.ticker-wrap { flex: 1; overflow: hidden; background: #0f172a; border: 1px solid #334155; border-radius: 5px; height: 26px; display: flex; align-items: center; }
+.ticker-text { display: inline-block; white-space: nowrap; font-family: sans-serif; font-size: 0.78rem; color: #f8fafc; font-weight: bold; animation: marquee 10s linear infinite; }
+@keyframes marquee { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+.tools-toggle { background: #0f172a; color: #38bdf8; border: 1px solid #38bdf8; padding: 4px 7px; border-radius: 5px; font-size: 0.75rem; font-weight: bold; cursor: pointer; font-family: sans-serif; white-space: nowrap; }
+.tools { display: none; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; padding: 8px; background: #0f172a; border: 1px solid #334155; border-radius: 6px; max-height: 160px; overflow-y: auto; }
+.tools.open { display: flex; }
+.tbtn { background: #1e293b; color: #38bdf8; border: 1px solid #334155; padding: 6px 8px; border-radius: 4px; font-weight: bold; font-size: 0.8rem; cursor: pointer; }
+textarea { width: 100%; height: 165px !important; min-height: 165px; background: #0f172a; color: #a7f3d0; border: 1px solid #334155; border-radius: 6px; padding: 10px; font-size: 1.05rem; line-height: 1.5; outline: none; }
+.btns { display: flex; gap: 8px; margin-top: 8px; }
+.abtn { flex: 1; padding: 10px; border: none; border-radius: 6px; font-weight: bold; font-size: 0.9rem; cursor: pointer; }
+.run { background: #38bdf8; color: #000; }
+.rst { background: #ef4444; color: #fff; }
+.status { margin-top: 8px; padding: 8px; background: #0f172a; border-left: 3px solid #38bdf8; font-size: 0.8rem; }
+.ar { background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 8px; min-height: 80px; direction: rtl; font-family: sans-serif; font-size: 0.88rem; }
+.item { padding: 6px 8px; margin-bottom: 6px; background: #1e293b; border-right: 3px solid #38bdf8; border-radius: 4px; }
+.err { border-right-color: #ef4444; color: #fca5a5; }
+.mbar { display: flex; gap: 5px; margin-bottom: 8px; }
+.minp { width: 33%; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 7px; border-radius: 4px; text-align: center; text-transform: uppercase; font-size: 0.9rem; }
+.mbtn { flex: 1; background: #22c55e; color: #000; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
+.addr-hall { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; max-height: 180px; overflow-y: auto; }
+.addr-cell { background: #0f172a; border: 1px solid #334155; border-radius: 5px; padding: 6px 8px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+.addr-cell.active { border-color: #f59e0b; background: #1e293b; }
+.addr-hex { color: #38bdf8; font-weight: bold; font-size: 0.9rem; }
+.addr-data { color: #22c55e; font-weight: bold; font-size: 1rem; background: #1e293b; padding: 2px 6px; border-radius: 3px; }
+.addr-tag { font-size: 0.65rem; color: #f59e0b; display: block; }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="title">
+    <span>REGISTERS & PAIRS</span>
+    <button type="button" class="tools-toggle" id="bits-btn" onclick="togBits()">بتات A / CY ▼</button>
+    <span style="font-size:0.75rem;">اضغط للتعديل</span>
+  </div>
+  <div class="bits-panel" id="bits-panel">
+    <div style="font-size:0.72rem; color:#94a3b8; margin-bottom:5px; text-align:right; font-family:sans-serif;">علم الحمل CY (للقراءة فقط) و بتات المُراكم A (b7 ← b0):</div>
+    <div class="bits-row">
+      <div class="bcell cy-ro" title="للقراءة فقط"><span class="blbl" style="color:#f59e0b;">CY</span><span class="bval" id="cy-ro-val">0</span></div>
+      <div></div>
+      <div class="bcell" onclick="togBit(7)"><span class="blbl">b7</span><span class="bval" id="ab7">0</span></div>
+      <div class="bcell" onclick="togBit(6)"><span class="blbl">b6</span><span class="bval" id="ab6">0</span></div>
+      <div class="bcell" onclick="togBit(5)"><span class="blbl">b5</span><span class="bval" id="ab5">0</span></div>
+      <div class="bcell" onclick="togBit(4)"><span class="blbl">b4</span><span class="bval" id="ab4">0</span></div>
+      <div class="bcell" onclick="togBit(3)"><span class="blbl">b3</span><span class="bval" id="ab3">0</span></div>
+      <div class="bcell" onclick="togBit(2)"><span class="blbl">b2</span><span class="bval" id="ab2">0</span></div>
+      <div class="bcell" onclick="togBit(1)"><span class="blbl">b1</span><span class="bval" id="ab1">0</span></div>
+      <div class="bcell" onclick="togBit(0)"><span class="blbl">b0</span><span class="bval" id="ab0">0</span></div>
+    </div>
+  </div>
+  
+  <div class="grid3">
+    <div class="box"><div class="lbl">A (Acc)</div><input class="inp" id="rA" value="00" maxlength="2" onchange="editR('A',2)"></div>
+    <div class="box"><div class="lbl">PC (16-bit)</div><input class="inp" id="rPC" value="0000" maxlength="4" onchange="editR('PC',4)"></div>
+    <div class="box"><div class="lbl">SP (16-bit)</div><input class="inp" id="rSP" value="FFFF" maxlength="4" onchange="editR('SP',4)"></div>
+  </div>
+  <div class="pair-row">
+    <div class="box"><div class="lbl">B</div><input class="inp" id="rB" value="00" maxlength="2" onchange="editR('B',2)"></div>
+    <div class="box"><div class="lbl">C</div><input class="inp" id="rC" value="00" maxlength="2" onchange="editR('C',2)"></div>
+    <div class="pair-box"><div class="lbl">BC (Pair)</div><input class="inp" id="rBC" value="0000" maxlength="4" onchange="editP('B')"></div>
+  </div>
+  <div class="pair-row">
+    <div class="box"><div class="lbl">D</div><input class="inp" id="rD" value="00" maxlength="2" onchange="editR('D',2)"></div>
+    <div class="box"><div class="lbl">E</div><input class="inp" id="rE" value="00" maxlength="2" onchange="editR('E',2)"></div>
+    <div class="pair-box"><div class="lbl">DE (Pair)</div><input class="inp" id="rDE" value="0000" maxlength="4" onchange="editP('D')"></div>
+  </div>
+  <div class="pair-row" style="margin-bottom:0;">
+    <div class="box"><div class="lbl">H</div><input class="inp" id="rH" value="00" maxlength="2" onchange="editR('H',2)"></div>
+    <div class="box"><div class="lbl">L</div><input class="inp" id="rL" value="00" maxlength="2" onchange="editR('L',2)"></div>
+    <div class="pair-box"><div class="lbl">HL (Pair/M)</div><input class="inp" id="rHL" value="0000" maxlength="4" onchange="editP('H')"></div>
+  </div>
+
+  <div class="flags">
+    <div class="fbox" onclick="togF('S')"><div class="lbl">S</div><div class="fval" id="fS">0</div></div>
+    <div class="fbox" onclick="togF('Z')"><div class="lbl">Z</div><div class="fval" id="fZ">0</div></div>
+    <div class="fbox" onclick="togF('AC')"><div class="lbl">AC</div><div class="fval" id="fAC">0</div></div>
+    <div class="fbox" onclick="togF('P')"><div class="lbl">P</div><div class="fval" id="fP">0</div></div>
+    <div class="fbox" onclick="togF('CY')"><div class="lbl">CY</div><div class="fval" id="fCY">0</div></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="title">
+    <span style="white-space:nowrap;">CODE EDITOR</span>
+    <div class="ticker-wrap">
+      <div class="ticker-text">تمت صناعة هذه الصفحة من قبل الطالب أنس برزان محمود</div>
+    </div>
+    <button type="button" class="tools-toggle" id="tog-btn" onclick="togTools()">أدوات الأوامر ▼</button>
+  </div>
+  <div class="tools" id="tools-menu">
+    <button type="button" class="tbtn" onclick="addOp('MOV ')">MOV</button>
+    <button type="button" class="tbtn" onclick="addOp('MVI ')">MVI</button>
+    <button type="button" class="tbtn" onclick="addOp('LXI ')">LXI</button>
+    <button type="button" class="tbtn" onclick="addOp('LDA ')">LDA</button>
+    <button type="button" class="tbtn" onclick="addOp('STA ')">STA</button>
+    <button type="button" class="tbtn" onclick="addOp('LDAX ')">LDAX</button>
+    <button type="button" class="tbtn" onclick="addOp('STAX ')">STAX</button>
+    <button type="button" class="tbtn" onclick="addOp('LHLD ')">LHLD</button>
+    <button type="button" class="tbtn" onclick="addOp('SHLD ')">SHLD</button>
+    <button type="button" class="tbtn" onclick="addOp('XCHG')">XCHG</button>
+    <button type="button" class="tbtn" onclick="addOp('XTHL')">XTHL</button>
+    <button type="button" class="tbtn" onclick="addOp('SPHL')">SPHL</button>
+    <button type="button" class="tbtn" onclick="addOp('PCHL')">PCHL</button>
+    <button type="button" class="tbtn" onclick="addOp('ADI ')">ADI</button>
+    <button type="button" class="tbtn" onclick="addOp('ADC ')">ADC</button>
+    <button type="button" class="tbtn" onclick="addOp('ACI ')">ACI</button>
+    <button type="button" class="tbtn" onclick="addOp('SUB ')">SUB</button>
+    <button type="button" class="tbtn" onclick="addOp('SBB ')">SBB</button>
+    <button type="button" class="tbtn" onclick="addOp('SBI ')">SBI</button>
+    <button type="button" class="tbtn" onclick="addOp('DCR ')">DCR</button>
+    <button type="button" class="tbtn" onclick="addOp('INX ')">INX</button>
+    <button type="button" class="tbtn" onclick="addOp('DCX ')">DCX</button>
+    <button type="button" class="tbtn" onclick="addOp('DAD ')">DAD</button>
+    <button type="button" class="tbtn" onclick="addOp('ANA ')">ANA</button>
+    <button type="button" class="tbtn" onclick="addOp('ANI ')">ANI</button>
+    <button type="button" class="tbtn" onclick="addOp('XRA ')">XRA</button>
+    <button type="button" class="tbtn" onclick="addOp('XRI ')">XRI</button>
+    <button type="button" class="tbtn" onclick="addOp('ORA ')">ORA</button>
+    <button type="button" class="tbtn" onclick="addOp('ORI ')">ORI</button>
+    <button type="button" class="tbtn" onclick="addOp('CMP ')">CMP</button>
+    <button type="button" class="tbtn" onclick="addOp('CPI ')">CPI</button>
+    <button type="button" class="tbtn" onclick="addOp('RLC')">RLC</button>
+    <button type="button" class="tbtn" onclick="addOp('RRC')">RRC</button>
+    <button type="button" class="tbtn" onclick="addOp('RAL')">RAL</button>
+    <button type="button" class="tbtn" onclick="addOp('RAR')">RAR</button>
+    <button type="button" class="tbtn" onclick="addOp('CMA')">CMA</button>
+    <button type="button" class="tbtn" onclick="addOp('CMC')">CMC</button>
+    <button type="button" class="tbtn" onclick="addOp('STC')">STC</button>
+    <button type="button" class="tbtn" onclick="addOp('IN ')">IN</button>
+    <button type="button" class="tbtn" onclick="addOp('OUT ')">OUT</button>
+    <button type="button" class="tbtn" onclick="addOp('HLT')">HLT</button>
+  </div>
+  <textarea id="ed" oninput="explain()" onkeyup="explain()" placeholder="اكتب الكود هنا أو افتح أدوات الأوامر..."></textarea>
+  <div class="btns">
+    <button type="button" class="abtn run" onclick="run()">▶ RUN CODE</button>
+    <button type="button" class="abtn rst" onclick="rst()">↺ RESET</button>
+  </div>
+  <div class="status" id="st">جاهز (معيار Intel 8085 الأصلي).</div>
+</div>
+
+<div class="card">
+  <div class="title"><span>ARABIC EXPLANATION</span><span style="cursor:pointer;" onclick="explain()">تحديث ↻</span></div>
+  <div class="ar" id="ar"></div>
+</div>
+
+<div class="card">
+  <div class="title"><span>ADDRESS HALL (MEMORY & PORTS)</span><span>صالة العناوين</span></div>
+  <div class="mbar">
+    <input class="minp" id="ma" placeholder="Addr 2500" maxlength="4">
+    <input class="minp" id="mv" placeholder="Data 5A" maxlength="2">
+    <button type="button" class="mbtn" onclick="setM()">+ ADD / SET</button>
+  </div>
+  <div class="addr-hall" id="hall"></div>
+</div>
+<script>
+var R = {A:0, B:0, C:0, D:0, E:0, H:0, L:0, PC:0, SP:65535};
+var F = {S:0, Z:0, AC:0, P:0, CY:0};
+var M = {}, P = {}, lastAddr = -1;
+
+var NM = {A:'المُراكم A', B:'السجل B', C:'السجل C', D:'السجل D', E:'السجل E', H:'السجل H', L:'السجل L', M:'الذاكرة M (HL)'};
+var PR = {B:'زوج BC', D:'زوج DE', H:'زوج HL', SP:'مؤشر المكدس SP'};
+
+function togBits() {
+  var p = document.getElementById('bits-panel'), b = document.getElementById('bits-btn');
+  var open = p.className.indexOf('open') !== -1;
+  p.className = open ? 'bits-panel' : 'bits-panel open';
+  b.innerHTML = open ? 'بتات A / CY ▼' : 'إغلاق البتات ▲';
+}
+function togBit(i) { R.A = (R.A ^ (1 << i)) & 255; ui(); }
+function togTools() {
+  var m = document.getElementById('tools-menu'), b = document.getElementById('tog-btn');
+  var open = m.className.indexOf('open') !== -1;
+  m.className = open ? 'tools' : 'tools open';
+  b.innerHTML = open ? 'أدوات الأوامر ▼' : 'إغلاق الأدوات ▲';
+}
+function hx(n, d) { var s = (n >>> 0).toString(16).toUpperCase(); while (s.length < d) s = '0' + s; return s; }
+function getHL() { return ((R.H << 8) | R.L) & 65535; }
+function getPair(rp) {
+  if (rp==='B') return ((R.B<<8)|R.C)&65535;
+  if (rp==='D') return ((R.D<<8)|R.E)&65535;
+  if (rp==='H') return getHL();
+  return R.SP & 65535;
+}
+function setPair(rp, v) {
+  v &= 65535;
+  if (rp==='B') { R.B=(v>>8)&255; R.C=v&255; }
+  else if (rp==='D') { R.D=(v>>8)&255; R.E=v&255; }
+  else if (rp==='H') { R.H=(v>>8)&255; R.L=v&255; }
+  else if (rp==='SP') R.SP = v;
+}
+function readSrc(o) { if (o==='M') { lastAddr = getHL(); return M[lastAddr]||0; } return R[o]&255; }
+function updSZP(v) {
+  v &= 255; F.S = (v & 128) ? 1 : 0; F.Z = (v === 0) ? 1 : 0;
+  var ones = 0; for (var b=0; b<8; b++) if ((v>>b)&1) ones++;
+  F.P = (ones % 2 === 0) ? 1 : 0;
+}
+function doAdd(v, cy) {
+  var a = R.A & 255; v &= 255; var res = a + v + cy;
+  F.AC = (((a&15)+(v&15)+cy) > 15) ? 1 : 0; F.CY = (res > 255) ? 1 : 0;
+  R.A = res & 255; updSZP(R.A);
+}
+function doSub(v, cy, stA) {
+  var a = R.A & 255; v &= 255; var d = a - v - cy;
+  F.CY = (d < 0) ? 1 : 0; F.AC = ((a&15) >= ((v&15)+cy)) ? 1 : 0;
+  var res = d & 255; if (stA) R.A = res; updSZP(res);
+}
+function tokens(line) {
+  var s = line.split(';')[0].trim().toUpperCase().split(',').join(' ').split(' '), t = [];
+  for (var i=0; i<s.length; i++) if (s[i]) t.push(s[i]);
+  return t;
+}
+function cln(s) { return (s && s.slice(-1)==='H') ? s.slice(0,-1) : (s||''); }
+function isHex(s, max) {
+  var c = cln(s); if (c.length < 1 || c.length > max) return false;
+  for (var i=0; i<c.length; i++) if ('0123456789ABCDEF'.indexOf(c.charAt(i)) === -1) return false;
+  return true;
+}
+
+function ui() {
+  var ks = ['A','B','C','D','E','H','L'], fs = ['S','Z','AC','P','CY'];
+  for (var i=0; i<ks.length; i++) document.getElementById('r'+ks[i]).value = hx(R[ks[i]], 2);
+  document.getElementById('rBC').value = hx(getPair('B'), 4);
+  document.getElementById('rDE').value = hx(getPair('D'), 4);
+  document.getElementById('rHL').value = hx(getPair('H'), 4);
+  document.getElementById('rPC').value = hx(R.PC, 4);
+  document.getElementById('rSP').value = hx(R.SP, 4);
+  for (var j=0; j<fs.length; j++) document.getElementById('f'+fs[j]).innerHTML = F[fs[j]];
+  for (var b=0; b<8; b++) document.getElementById('ab'+b).innerHTML = (R.A >> b) & 1;
+  document.getElementById('cy-ro-val').innerHTML = F.CY;
+
+  var h = '', addrs = Object.keys(M).sort(function(a,b){ return a-b; });
+  for (var k=0; k<addrs.length; k++) {
+    var a = parseInt(addrs[k], 10), tags = [];
+    if (a === getHL()) tags.push('HL(M)');
+    if (a === getPair('D')) tags.push('DE');
+    if (a === getPair('B')) tags.push('BC');
+    if (a === R.SP) tags.push('SP');
+    h += '<div class="addr-cell ' + (a===lastAddr?'active':'') + '" onclick="pickAddr(\''+hx(a,4)+'\',\''+hx(M[a],2)+'\')"><div><span class="addr-hex">'+hx(a,4)+'H</span><span class="addr-tag">'+(tags.length?'← '+tags.join(','):'')+'</span></div><span class="addr-data">'+hx(M[a],2)+'H</span></div>';
+  }
+  for (var pt in P) h += '<div class="addr-cell"><div><span class="addr-hex" style="color:#f59e0b">PORT '+hx(parseInt(pt,10),2)+'H</span><span class="addr-tag">I/O</span></div><span class="addr-data">'+hx(P[pt],2)+'H</span></div>';
+  document.getElementById('hall').innerHTML = h || '<div style="grid-column:1/3;text-align:center;color:#94a3b8;font-size:0.8rem;padding:10px;">صالة العناوين فارغة.</div>';
+}
+
+function pickAddr(a, v) { document.getElementById('ma').value = a; document.getElementById('mv').value = v; }
+function addOp(t) { var e = document.getElementById('ed'); if (e.value && e.value.slice(-1)!=='\n') e.value += '\n'; e.value += t; togTools(); e.focus(); explain(); }
+function editR(k, d) { var v = parseInt(document.getElementById('r'+k).value, 16); if (!isNaN(v)) R[k] = v & (d===4?65535:255); ui(); }
+function editP(rp) {
+  var id = (rp==='B')?'rBC':((rp==='D')?'rDE':'rHL');
+  var v = parseInt(document.getElementById(id).value, 16);
+  if (!isNaN(v)) setPair(rp, v & 65535);
+  ui();
+}
+function togF(k) { F[k] = F[k] ? 0 : 1; ui(); }
+function setM() {
+  var a = parseInt(cln(document.getElementById('ma').value.trim()), 16), v = parseInt(cln(document.getElementById('mv').value.trim()), 16);
+  if (!isNaN(a) && !isNaN(v)) { lastAddr = a & 65535; M[lastAddr] = v & 255; ui(); document.getElementById('st').innerHTML = 'تم وضع ' + hx(v,2) + 'H في ' + hx(lastAddr,4) + 'H'; }
+}
+var DESC = {
+  MOV:'نقل بيانات بين سجلين أو الذاكرة M', MVI:'تحميل قيمة فورية 8-بت', LXI:'تحميل عنوان 16-بت في زوج سجلات',
+  LDA:'قراءة بايت من عنوان ذاكرة مباشر إلى المُراكم A', STA:'تخزين المُراكم A في عنوان ذاكرة مباشر',
+  LDAX:'قراءة غير مباشرة إلى A عبر BC أو DE', STAX:'تخزين غير مباشر من A عبر BC أو DE',
+  LHLD:'تحميل زوج HL مباشرة من عنوانين متتاليين', SHLD:'تخزين زوج HL مباشرة في عنوانين متتاليين',
+  XCHG:'تبديل محتوى HL مع DE', XTHL:'تبديل HL مع قمة المكدس SP', SPHL:'نسخ HL إلى مؤشر المكدس SP', PCHL:'نسخ HL إلى عداد البرنامج PC',
+  ADI:'جمع قيمة فورية مع A وتحديث الأعلام', ADC:'جمع سجل/M + علم الحمل CY مع A', ACI:'جمع قيمة فورية + علم الحمل CY مع A',
+  SUB:'طرح سجل/M من A وتحديث الأعلام', SBB:'طرح سجل/M وعلم الاستعارة CY من A', SBI:'طرح قيمة فورية وعلم الاستعارة CY من A',
+  DCR:'إنقاص سجل/M بمقدار 1 (يؤثر على S,Z,AC,P)', INX:'زيادة زوج سجلات بمقدار 1 (16-بت)', DCX:'إنقاص زوج سجلات بمقدار 1 (16-بت)',
+  DAD:'جمع مزدوج 16-بت لزوج السجلات مع HL', ANA:'عملية AND منطقية مع A (AC=1, CY=0)', ANI:'عملية AND فورية مع A',
+  XRA:'عملية XOR منطقية مع A (CY=0, AC=0)', XRI:'عملية XOR فورية مع A', ORA:'عملية OR منطقية مع A (CY=0, AC=0)', ORI:'عملية OR فورية مع A',
+  CMP:'مقارنة سجل/M مع A وتحديث الأعلام دون تغيير A', CPI:'مقارنة قيمة فورية مع A وتحديث الأعلام',
+  RLC:'تدوير بتات A لليسار وتحديث CY', RRC:'تدوير بتات A لليمين وتحديث CY', RAL:'تدوير A لليسار عبر الحمل CY', RAR:'تدوير A لليمين عبر الحمل CY',
+  CMA:'المتمم الأحادي (عكس بتات A)', CMC:'عكس حالة علم الحمل CY', STC:'تفعيل علم الحمل CY = 1',
+  IN:'إدخال بيانات من منفذ I/O إلى A', OUT:'إخراج بيانات A إلى منفذ I/O', HLT:'إيقاف تنفيذ البرنامج'
+};
+
+function explain() {
+  var lines = document.getElementById('ed').value.split('\n'), h = '';
+  for (var i=0; i<lines.length; i++) {
+    var p = tokens(lines[i]); if (!p.length) continue;
+    var op = p[0], d = DESC[op];
+    if (d) h += '<div class="item"><b>خطوة '+(i+1)+' ('+p.join(' ')+'):</b> '+d+'</div>';
+    else h += '<div class="item err"><b>خطوة '+(i+1)+':</b> أمر غير معروف ('+p.join(' ')+')</div>';
+  }
+  document.getElementById('ar').innerHTML = h || '<div class="item">اكتب الكود أو اضغط على (أدوات الأوامر ▼) لإدراج الأوامر...</div>';
+}
+
+function run() {
+  var lines = document.getElementById('ed').value.split('\n'), st = document.getElementById('st');
+  for (var i=0; i<lines.length; i++) {
+    var p = tokens(lines[i]); if (!p.length) continue;
+    R.PC = (R.PC + 1) & 65535; var op = p[0];
+    if (op==='HLT' && p.length===1) { st.innerHTML='تم التنفيذ بنجاح (HLT).'; st.style.borderLeftColor='#22c55e'; ui(); return; }
+    else if (op==='MOV' && p.length===3 && (p[1] in NM) && (p[2] in NM) && !(p[1]==='M'&&p[2]==='M')) {
+      if (p[1]==='M') { lastAddr=getHL(); M[lastAddr]=R[p[2]]; } else if (p[2]==='M') { lastAddr=getHL(); R[p[1]]=M[lastAddr]||0; } else R[p[1]]=R[p[2]];
+    } else if (op==='MVI' && p.length===3 && (p[1] in NM) && isHex(p[2],2)) {
+      var v8 = parseInt(cln(p[2]),16)&255; if (p[1]==='M') { lastAddr=getHL(); M[lastAddr]=v8; } else R[p[1]]=v8;
+    } else if (op==='LXI' && p.length===3 && (p[1] in PR) && isHex(p[2],4)) {
+      var v16 = parseInt(cln(p[2]),16)&65535; lastAddr=v16; setPair(p[1],v16);
+    } else if (op==='LDA' && p.length===2 && isHex(p[1],4)) { lastAddr=parseInt(cln(p[1]),16)&65535; R.A=M[lastAddr]||0; }
+    else if (op==='STA' && p.length===2 && isHex(p[1],4)) { lastAddr=parseInt(cln(p[1]),16)&65535; M[lastAddr]=R.A; }
+    else if (op==='LDAX' && p.length===2 && (p[1]==='B'||p[1]==='D')) { lastAddr=getPair(p[1]); R.A=M[lastAddr]||0; }
+    else if (op==='STAX' && p.length===2 && (p[1]==='B'||p[1]==='D')) { lastAddr=getPair(p[1]); M[lastAddr]=R.A; }
+    else if (op==='LHLD' && p.length===2 && isHex(p[1],4)) { lastAddr=parseInt(cln(p[1]),16)&65535; R.L=M[lastAddr]||0; R.H=M[(lastAddr+1)&65535]||0; }
+    else if (op==='SHLD' && p.length===2 && isHex(p[1],4)) { lastAddr=parseInt(cln(p[1]),16)&65535; M[lastAddr]=R.L; M[(lastAddr+1)&65535]=R.H; }
+    else if (op==='XCHG' && p.length===1) { var th=R.H,tl=R.L; R.H=R.D; R.L=R.E; R.D=th; R.E=tl; }
+    else if (op==='XTHL' && p.length===1) { lastAddr=R.SP; var sl=M[R.SP]||0,sh=M[(R.SP+1)&65535]||0; M[R.SP]=R.L; M[(R.SP+1)&65535]=R.H; R.L=sl; R.H=sh; }
+    else if (op==='SPHL' && p.length===1) { R.SP=getHL(); }
+    else if (op==='PCHL' && p.length===1) { R.PC=getHL(); }
+    else if (op==='ADI' && p.length===2 && isHex(p[1],2)) { doAdd(parseInt(cln(p[1]),16),0); }
+    else if (op==='ADC' && p.length===2 && (p[1] in NM)) { doAdd(readSrc(p[1]),F.CY); }
+    else if (op==='ACI' && p.length===2 && isHex(p[1],2)) { doAdd(parseInt(cln(p[1]),16),F.CY); }
+    else if (op==='SUB' && p.length===2 && (p[1] in NM)) { doSub(readSrc(p[1]),0,true); }
+    else if (op==='SBB' && p.length===2 && (p[1] in NM)) { doSub(readSrc(p[1]),F.CY,true); }
+    else if (op==='SBI' && p.length===2 && isHex(p[1],2)) { doSub(parseInt(cln(p[1]),16),F.CY,true); }
+    else if (op==='DCR' && p.length===2 && (p[1] in NM)) {
+      var cd=readSrc(p[1]), rd=(cd-1)&255; F.AC=((cd&15)>=1)?1:0;
+      if (p[1]==='M') M[lastAddr]=rd; else R[p[1]]=rd; updSZP(rd);
+    } else if (op==='INX' && p.length===2 && (p[1] in PR)) { setPair(p[1],(getPair(p[1])+1)&65535); }
+    else if (op==='DCX' && p.length===2 && (p[1] in PR)) { setPair(p[1],(getPair(p[1])-1)&65535); }
+    else if (op==='DAD' && p.length===2 && (p[1] in PR)) { var s16=getHL()+getPair(p[1]); F.CY=(s16>65535)?1:0; setPair('H',s16&65535); }
+    else if (op==='ANA' && p.length===2 && (p[1] in NM)) { R.A=(R.A&readSrc(p[1]))&255; F.CY=0; F.AC=1; updSZP(R.A); }
+    else if (op==='ANI' && p.length===2 && isHex(p[1],2)) { R.A=(R.A&parseInt(cln(p[1]),16))&255; F.CY=0; F.AC=1; updSZP(R.A); }
+    else if (op==='XRA' && p.length===2 && (p[1] in NM)) { R.A=(R.A^readSrc(p[1]))&255; F.CY=0; F.AC=0; updSZP(R.A); }
+    else if (op==='XRI' && p.length===2 && isHex(p[1],2)) { R.A=(R.A^parseInt(cln(p[1]),16))&255; F.CY=0; F.AC=0; updSZP(R.A); }
+    else if (op==='ORA' && p.length===2 && (p[1] in NM)) { R.A=(R.A|readSrc(p[1]))&255; F.CY=0; F.AC=0; updSZP(R.A); }
+    else if (op==='ORI' && p.length===2 && isHex(p[1],2)) { R.A=(R.A|parseInt(cln(p[1]),16))&255; F.CY=0; F.AC=0; updSZP(R.A); }
+    else if (op==='CMP' && p.length===2 && (p[1] in NM)) { doSub(readSrc(p[1]),0,false); }
+    else if (op==='CPI' && p.length===2 && isHex(p[1],2)) { doSub(parseInt(cln(p[1]),16),0,false); }
+    else if (op==='RLC' && p.length===1) { var b7=(R.A>>7)&1; F.CY=b7; R.A=((R.A<<1)|b7)&255; }
+    else if (op==='RRC' && p.length===1) { var b0=R.A&1; F.CY=b0; R.A=((R.A>>1)|(b0<<7))&255; }
+    else if (op==='RAL' && p.length===1) { var ob7=(R.A>>7)&1; R.A=((R.A<<1)|F.CY)&255; F.CY=ob7; }
+    else if (op==='RAR' && p.length===1) { var ob0=R.A&1; R.A=((R.A>>1)|(F.CY<<7))&255; F.CY=ob0; }
+    else if (op==='CMA' && p.length===1) { R.A=(~R.A)&255; }
+    else if (op==='CMC' && p.length===1) { F.CY=F.CY?0:1; }
+    else if (op==='STC' && p.length===1) { F.CY=1; }
+    else if (op==='IN' && p.length===2 && isHex(p[1],2)) { R.A=P[parseInt(cln(p[1]),16)&255]||0; }
+    else if (op==='OUT' && p.length===2 && isHex(p[1],2)) { P[parseInt(cln(p[1]),16)&255]=R.A; }
+    else { st.innerHTML='خطأ في السطر '+(i+1)+': '+p.join(' '); st.style.borderLeftColor='#ef4444'; ui(); return; }
+  }
+  st.innerHTML='تم التنفيذ بنجاح.'; st.style.borderLeftColor='#22c55e'; ui();
+}
+
+function rst() {
+  R={A:0,B:0,C:0,D:0,E:0,H:0,L:0,PC:0,SP:65535}; F={S:0,Z:0,AC:0,P:0,CY:0}; M={}; P={}; lastAddr=-1;
+  ui(); document.getElementById('st').innerHTML='تم تصفير السجلات وصالة العناوين.'; document.getElementById('st').style.borderLeftColor='#38bdf8';
+}
+
+explain(); ui();
+</script>
+</body>
+</html>
