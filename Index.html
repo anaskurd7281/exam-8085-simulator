@@ -131,7 +131,8 @@ textarea { width: 100%; height: 165px !important; min-height: 165px; background:
     <button type="button" class="tbtn" onclick="addOp('XTHL')">XTHL</button>
     <button type="button" class="tbtn" onclick="addOp('SPHL')">SPHL</button>
     <button type="button" class="tbtn" onclick="addOp('PCHL')">PCHL</button>
-    <button type="button" class="tbtn" onclick="addOp('ADI ')">ADI</button>
+     <button type="button" class="tbtn" onclick="addOp('ADD ')">ADD</button>
+     <button type="button" class="tbtn" onclick="addOp('ADI ')">ADI</button>
     <button type="button" class="tbtn" onclick="addOp('ADC ')">ADC</button>
     <button type="button" class="tbtn" onclick="addOp('ACI ')">ACI</button>
     <button type="button" class="tbtn" onclick="addOp('SUB ')">SUB</button>
@@ -303,6 +304,7 @@ var DESC = {
   LDAX:'قراءة غير مباشرة إلى A عبر BC أو DE', STAX:'تخزين غير مباشر من A عبر BC أو DE',
   LHLD:'تحميل زوج HL مباشرة من عنوانين متتاليين', SHLD:'تخزين زوج HL مباشرة في عنوانين متتاليين',
   XCHG:'تبديل محتوى HL مع DE', XTHL:'تبديل HL مع قمة المكدس SP', SPHL:'نسخ HL إلى مؤشر المكدس SP', PCHL:'نسخ HL إلى عداد البرنامج PC',
+  ADD:'جمع سجل/M مع A وتحديث الأعلام',
   ADI:'جمع قيمة فورية مع A وتحديث الأعلام', ADC:'جمع سجل/M + علم الحمل CY مع A', ACI:'جمع قيمة فورية + علم الحمل CY مع A',
   SUB:'طرح سجل/M من A وتحديث الأعلام', SBB:'طرح سجل/M وعلم الاستعارة CY من A', SBI:'طرح قيمة فورية وعلم الاستعارة CY من A',
   DCR:'إنقاص سجل/M بمقدار 1 (يؤثر على S,Z,AC,P)', INX:'زيادة زوج سجلات بمقدار 1 (16-بت)', DCX:'إنقاص زوج سجلات بمقدار 1 (16-بت)',
@@ -347,6 +349,7 @@ function run() {
     else if (op==='XTHL' && p.length===1) { lastAddr=R.SP; var sl=M[R.SP]||0,sh=M[(R.SP+1)&65535]||0; M[R.SP]=R.L; M[(R.SP+1)&65535]=R.H; R.L=sl; R.H=sh; }
     else if (op==='SPHL' && p.length===1) { R.SP=getHL(); }
     else if (op==='PCHL' && p.length===1) { R.PC=getHL(); }
+    else if (op==='ADD' && p.length===2 && (p[1] in NM)) { doAdd(readSrc(p[1]),0); }
     else if (op==='ADI' && p.length===2 && isHex(p[1],2)) { doAdd(parseInt(cln(p[1]),16),0); }
     else if (op==='ADC' && p.length===2 && (p[1] in NM)) { doAdd(readSrc(p[1]),F.CY); }
     else if (op==='ACI' && p.length===2 && isHex(p[1],2)) { doAdd(parseInt(cln(p[1]),16),F.CY); }
